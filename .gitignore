@@ -1,0 +1,17 @@
+# Virtual env
+venv/
+__pycache__/
+
+# Configs locais
+.env
+*.env
+
+# Dados e saídas
+data/
+*.parquet
+*.csv
+*.log
+
+# IDE
+.vscode/
+.idea/
