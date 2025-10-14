@@ -14,6 +14,9 @@ import json
 
 def lambda_handler(event, context):
     """Lambda Trigger para iniciar o Glue Job ao detectar novo arquivo no S3 (camada raw)."""
+    
+    # Loga o evento completo (útil para depuração ou documentação)
+    print(json.dumps(event, indent=4))  
 
     glue = boto3.client('glue')
 
