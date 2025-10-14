@@ -217,6 +217,7 @@ Métrica de avaliação: R²
 
 💡 ML aplicado, validando a utilidade analítica do dataset refinado.
 
+🔗 https://aylatilio.github.io/b3-dataflow-aws-batch/notebooks/ibov_ml_analysis.html
 
 ---
 
