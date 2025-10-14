@@ -27,7 +27,9 @@ Demonstrar um pipeline de **dados escalável, modular e automatizado**, que cone
 
 **S3 (armazenamento) → Lambda (orquestração) → Glue (ETL) → Athena (análise)**
 
+
 ---
+
 
 ## 🧱 Arquitetura
 
@@ -46,6 +48,7 @@ flowchart TD
 ⚙️ Orquestração: AWS Lambda + Glue Job ETL  
 📚 Catálogo e Consulta: AWS Glue Catalog + Amazon Athena
 
+
 ---
 
 ## 🗂️ Estrutura
@@ -53,172 +56,127 @@ flowchart TD
 b3-dataflow-aws-batch/
 │
 ├── data/
-│   ├── raw/               		 # dados brutos (Parquet)
-│   └── refined/           		 # dados transformados localmente
+│   ├── raw/                      # dados brutos (Parquet)
+│   └── refined/                  # dados transformados localmente
 │
 ├── src/
-│   ├── extract_ibov.py          # extração e ingestão de dados do IBOV via yfinance
-│   ├── upload_s3.py             # upload automático para o S3 bucket raw/
-│   ├── lambda_trigger.py        # função Lambda (dispara o Glue Job)
-│   ├── glue_job_etl.py          # ETL rodando no AWS Glue
-│   └── glue_job_etl_local.py    # Simulação local do Glue Job
+│   ├── extract_ibov.py           # extração e ingestão de dados do IBOV via yfinance
+│   ├── upload_s3.py              # upload automático para o S3 bucket raw/
+│   ├── lambda_trigger.py         # função Lambda (dispara o Glue Job)
+│   ├── glue_job_etl.py           # ETL rodando no AWS Glue
+│   └── glue_job_etl_local.py     # simulação local do Glue Job
 │
-├── notebooks/ 
-│   └── athena_queries.ipynb  	 # consultas Athena e análises
+├── notebooks/
+│   ├── athena_queries.ipynb      # consultas e análises via Athena
+│   └── ibov_ml_analysis.ipynb    # EDA e modelo preditivo (Regressão Linear)
 │
-├── docs/                        # documentação e diagramas
+├── docs/                         # documentação e diagramas
 │   └── diagrams/
 │       ├── architecture.mmd
 │       └── architecture.png
 │
 ├── requirements.txt
-├──.env.example   
+├── .env.example
 └── README.md
 ```
----
-
-## 📘 Notebook Overview — athena_queries.ipynb
-
-O notebook consolida a etapa final do pipeline analítico, validando a integração entre as camadas do AWS Data Lake (S3, Glue, Athena) e o consumo analítico em Python. 
-
-🧩 Bloco 1 — Query de preview via boto3
-Executa uma consulta simples no serviço Amazon Athena, mas a partir do código Python (boto3), retornando o QueryExecutionId e validando a comunicação programática entre o Glue Catalog e o Athena. 
-A mesma query é usada para exibir uma amostra dos 10 registros mais recentes da camada refined, permitindo validar o schema, as partições e a integridade dos dados transformados pelo AWS Glue Job.
-
-💡 Esse bloco garante que o pipeline consegue acionar o Athena via API. 
-
-⚙️ Bloco 2 — Query analítica (volatilidade e amplitude)
-Envia uma consulta ao Athena via awswrangler, retornando um DataFrame pandas enriquecido com features derivadas (amplitude, volatilidade_pct). 
-Identifica os dias com maior volatilidade (diferença entre high e low) e volume negociado, destacando potenciais eventos de pico no índice IBOVESPA em 2025. 
-Essa análise é base para estudos exploratórios e criação de features temporais (rolling mean, z-score) ou integração com modelos de detecção de anomalias (Isolation Forest, Autoencoders).
-
-💡 Esse bloco comprova que o dataset refinado está pronto para análises quantitativas.
-
-📊 Bloco 3 — Query agregada de estatísticas
-Calcula medidas de resumo (média, máximo e mínimo) sobre os preços do IBOVESPA na camada refined, filtrando o ano de 2025. 
-Serve como checagem de consistência pós-ETL, garantindo que os valores numéricos transformados no Glue Job mantêm coerência com o comportamento esperado do índice.
-
-💡 Bloco de verificação — assegura que a transformação no Glue não alterou escalas ou integridade dos dados.
-
-🧠 Bloco 4 — Feature Engineering / Isolation Forest Prep
-Realiza cálculos de média móvel, desvio padrão móvel e z-score a partir da coluna volatilidade_pct, derivada no bloco anterior. Com esses indicadores, é criada a variável volatilidade_pico, 
-que recebe valor 1 quando o z-score ultrapassa 1.5 desvios padrão acima da média, sinalizando períodos de alta volatilidade, potenciais outliers do comportamento normal do índice.
-
-💡 Essa etapa prepara o dataset para uso em algoritmos de detecção de anomalias, como Isolation Forest, Autoencoders ou DBSCAN, permitindo identificar variações extremas e regimes de mercado atípicos. 
-
-Raw → Refined → Glue → Athena → Python → Feature Engineering
-
-Raw: dados ingeridos e armazenados em S3 (parquet bruto)
-Glue: ETL transforma e grava camada refined 
-Athena: consulta SQL no catálogo do Glue
-Python: acesso programático e análise via boto3/awswrangler
-Feature Engineering: cálculo de métricas e preparação para ML
 
 ---
 
-## 🧩 Lambda Trigger — Glue Orchestration
-A função `lambda_trigger_glue_job` monitora o bucket *Raw* (`b3-dataflow-raw/raw/`) e,
-ao detectar um novo arquivo `.parquet`, dispara automaticamente o Glue Job `b3-etl-job`.
-Essa automação conecta as camadas do pipeline S3 → Lambda → Glue → S3 Refined,
-eliminando a necessidade de execução manual.
 
 🔄 Pipeline de Execução — End-to-End Flow
-O projeto implementa um pipeline totalmente automatizado que vai da extração local à análise via Athena, integrando componentes locais e serviços AWS: 
 
-# S3 (raw) → Lambda Trigger → Glue Job → S3 (refined)
+| Etapa                         | Ambiente / Serviço       | Descrição                                                                                                 |
+| ----------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| 🐍 **extract_ibov.py**        | Local (VS Code)          | Extrai dados do índice IBOVESPA via `yfinance` e gera o arquivo parquet bruto (`data/raw/`).              |
+| ☁️ **upload_s3.py**           | Local → Amazon S3 (raw)  | Faz o upload automático do parquet gerado para o bucket `b3-dataflow-raw/raw/`.                           |
+| ⚡ **lambda_trigger.py**       | AWS Lambda               | Detecta novos arquivos no bucket *raw* e dispara automaticamente o Glue Job `b3-etl-job`.                 |
+| 🧩 **glue_job_etl.py**        | AWS Glue                 | Executa o ETL: transforma, renomeia colunas, calcula médias móveis e grava o dataset refinado.            |
+| 🧩 **glue_job_etl_local.py**  | Local (VS Code)          | Simula o Glue Job localmente, gerando o parquet `ibov_refined.parquet` em `data/refined/`.                |
+| 💾 **Buckets Raw / Refined**  | Amazon S3                | Armazenam as camadas de dados (raw = bruta / refined = transformada) em formato Parquet particionado.     |
+| 📚 **Glue Catalog / Crawler** | AWS Glue Data Catalog    | Atualiza o schema e registra a tabela `ibov_refined`, permitindo consulta via Athena.                     |
+| 🔍 **athena_queries.ipynb**   | Local → Amazon Athena    | Executa queries SQL sobre os dados refinados via `boto3` e `awswrangler`.                                 |
+| 🤖 **ibov_ml_analysis.ipynb** | Local (Jupyter Notebook) | Realiza EDA e treina modelo de **Regressão Linear** com `scikit-learn` para prever o preço de fechamento. |
 
-| Etapa                          | Ambiente                 | Descrição                                                                                                                                              |
-| :----------------------------- | :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🐍 **extract_ibov.py**         | Local (VS Code)          | Extrai dados do índice IBOVESPA via `yfinance` e gera o arquivo parquet bruto (`data/raw/`).                                                           |
-| ☁️ **upload_s3.py**            | Local                    | Faz o upload automático do parquet gerado para o bucket S3 `b3-dataflow-raw/raw/`.                                                                     |
-| ⚡ **lambda_trigger.py**        | AWS Lambda               | Monitora o bucket `raw/` e, ao detectar um novo arquivo `.parquet`, dispara o Glue Job automaticamente.                                                |
-| 🧩 **Glue Job (`b3-etl-job`)** | AWS Glue                 | Executa o processo ETL: transforma, particiona e grava o dataset refinado em `b3-dataflow-refined/`.                                                   |
-| 📊 **athena_queries.ipynb**    | Local (Jupyter Notebook) | Conecta-se ao Athena via `boto3` e `awswrangler` para consultar e analisar os dados refinados (volatilidade, amplitude, estatísticas agregadas, etc.). |
+💡 Essa visão unificada mostra a integração Local ↔ AWS, cobrindo todas as etapas do pipeline:
 
-💡 Esse fluxo garante rastreabilidade completa entre a ingestão, transformação e análise dos dados na nuvem.
+# Extração → Upload → Orquestração → ETL → Catálogo → Análise → Machine Learning
 
-| Componente                | Função                                                    |
-| ------------------------- | --------------------------------------------------------- |
-| **extract_ibov.py**       | Gera parquet local com sucesso                            |
-| **upload_s3.py**          | Upload validado via AWS CLI                               |
-| **lambda_trigger.py**     | Dispara Glue Job após upload                              |
-| **glue_job_etl.py**       | Roda com sucesso no AWS Glue                              |
-| **glue_job_etl_local.py** | Gera `ibov_refined.parquet` localmente                    |
-| **Bucket Raw**            | Contém parquet do dia 13/10                               |
-| **Bucket Refined**        | Contém parquet refinado gerado                            |
-| **Glue Catalog / Athena** | Tabela `ibov_refined` disponível e consultável via Athena |
 
 ---
 
-## ⚙️ Requisitos e Execução do Pipeline
-```plaintext
+
+⚙️ Requisitos e Execução do Pipeline
+
 🧩 Pré-requisitos
-	Python 3.11.9 (recomendado pela estabilidade com awswrangler, pandas e boto3)
-	Conta AWS com permissões nos serviços:
-		S3 (leitura e escrita)
-		Glue (job, crawler e catalog)
-		Lambda (execução e logs)
-		Athena (consultas)
-	Credenciais AWS configuradas localmente (aws configure)
-	Ambiente virtual Python ativo (venv)
-	
+
+	Python 3.11.9
+
+Conta AWS com permissões em: S3, Glue, Lambda, Athena, CloudWatch
+
+
+Credenciais AWS configuradas localmente:
+
+aws configure
+
+
+Ambiente virtual Python ativo (venv):
+
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+
 🚀 Etapas de Execução
-1. Configuração do ambiente
-	Crie e ative o ambiente virtual:
-		python -m venv venv
-		source venv/bin/activate      # Linux/Mac
-		venv\Scripts\activate         # Windows
-		
-	Instale as dependências:
-		pip install -r requirements.txt
-		
-2. Ingestão e extração de dados:
-		python src/extract_ibov.py
-	
-	Baixa as cotações recentes do IBOVESPA a partir da API Yahoo Finance e salva em formato Parquet particionado:
-		python src/extract_ibov.py
-	Arquivo Parquet salvo localmente em data/raw/year=YYYY/month=MM/day=DD/ibov.parquet
-	
-3. Upload para o Amazon S3
-	Envie os dados gerados para o bucket S3 (camada raw):
-		python src/upload_s3.py
-	Arquivo Parquet disponível em s3://b3-dataflow-raw/raw/year=YYYY/month=MM/day=DD/ibov.parquet
-	
-4. Orquestração automática via Lambda
-	O AWS Lambda Trigger detecta automaticamente o novo arquivo na camada raw e executa o Glue Job ETL configurado no console AWS:
-		Transforma os dados (média móvel, amplitude, volatilidade etc.)
-		Salva o resultado em s3://b3-dataflow-refined/refined/...
-		Atualiza o Glue Catalog via Crawler
-	Logs no CloudWatch (b3-etl-job)
-	
-5. Consulta e análise
-	Após a conclusão do ETL, as consultas podem ser feitas:
-		Diretamente no Amazon Athena (console web), ou
-		Localmente via notebook notebooks/athena_queries.ipynb
-	Execute localmente para validar a leitura do Glue Catalog e gerar análises:
-		python -m notebook
-	
-	Resultados esperados:
-		Query de preview (boto3) → valida a conectividade
-		Query analítica (awswrangler) → gera amplitude e volatilidade_pct
-		Query agregada → valida consistência
-		Feature engineering (pandas) → prepara para Isolation Forest
 
-6. Visualização e Validação
-	Verifique no S3 as pastas raw e refined
-	Confirme a tabela b3_refined_db no Glue Catalog
-	Execute queries no Athena
-	Visualize o DataFrame enriquecido e as features criadas no notebook
+1️⃣ Ingestão e Upload
 
-* Para testes rápidos, também é possível executar o Glue Job manualmente no console e validar o output no Athena antes de ativar o trigger Lambda.
-```
+python src/extract_ibov.py
+python src/upload_s3.py
+
+Extrai e envia dados brutos para b3-dataflow-raw/raw/.
+
+
+2️⃣ Orquestração via Lambda
+
+A função lambda_trigger.py dispara o Glue Job (b3-etl-job) sempre que um novo arquivo .parquet é adicionado ao bucket raw.
+
+Evento: ObjectCreated:Put
+Resultado: parquet refinado em b3-dataflow-refined/refined/.
+
+
+3️⃣ ETL (Glue / Local)
+
+python src/glue_job_etl_local.py
+
+Realiza transformações, médias móveis e salva data/refined/ibov_refined.parquet.
+
+
+4️⃣ Catálogo e Consulta (Athena)
+
+jupyter notebook notebooks/athena_queries.ipynb
+
+Executa queries SQL sobre o dataset ibov_refined registrado no Glue Catalog.
+Gera estatísticas, volatilidade e amplitude.
+
+
+5️⃣ Machine Learning
+
+jupyter notebook notebooks/ibov_ml_analysis.ipynb
+
+Lê o parquet refinado e executa:
+EDA (estatísticas, visualização temporal)
+Regressão Linear (sklearn)
+Exibe gráfico de ajuste e métrica R²
+
+💡 Dica: O Glue Job pode ser executado manualmente no console antes de ativar o trigger Lambda, facilitando o debug inicial.
 
 ---
+
 
 🔍 Consulta SQL no Amazon Athena
 
 Após o crawler atualizar o catálogo (b3_refined_db.ibov_refined), as consultas podem ser executadas diretamente no Athena.
-Exemplo de query analítica validada durante os testes:
+
 ```sql
 SELECT
     data,
@@ -240,16 +198,38 @@ LIMIT 10;
 | 2025-10-10 | 128.290,00     | 127.845,00       | −445,00         | −0.35 %      | 12 988 500       |
 | …          | …              | …                | …               | …            | …                |
 
-💡 Resultado do Pipeline: dados transformados acessíveis no Athena, com colunas renomeadas e cálculos derivados gerados pelo Glue Job.
+
+💡 Dataset refinado disponível no Athena, com cálculos derivados e partições atualizadas automaticamente via Glue Crawler.
+
 
 ---
+
+
+🧠 Machine Learning (Análise Preditiva)
+
+Notebook: notebooks/ibov_ml_analysis.ipynb
+Leitura do dataset ibov_refined.parquet
+Estatísticas descritivas e gráfico temporal
+Modelo LinearRegression (sklearn)
+Variável alvo: preco_fechamento
+Variável explicativa: media_movel_3d
+Métrica de avaliação: R²
+
+💡 ML aplicado, validando a utilidade analítica do dataset refinado.
+
+
+---
+
 
 ## 🧠 Conclusão
-O pipeline demonstra a integração completa de serviços AWS para ingestão, transformação e análise de dados de mercado.
-A arquitetura implementa boas práticas de Data Lake (camadas raw/refined), ETL automatizado via Glue e análise com Athena, garantindo escalabilidade e rastreabilidade.
-As features geradas (volatilidade, amplitude, z-score) servem como base para futuras aplicações de Machine Learning, como detecção de anomalias com Isolation Forest.
+
+O pipeline demonstra a integração completa de serviços AWS para ingestão, transformação e análise de dados financeiros.
+A arquitetura implementa boas práticas de Data Lake (raw/refined), ETL automatizado via Glue e análise via Athena, garantindo escalabilidade e rastreabilidade.
+As features geradas (volatilidade, amplitude, médias móveis) servem de base para aplicações de Machine Learning, como detecção de anomalias e previsão de tendências.
+
 
 ---
+
 
 ## 🔗 Referências
 - [Yahoo Finance API (yfinance)](https://pypi.org/project/yfinance/)
