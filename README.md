@@ -35,12 +35,12 @@ Demonstrar um pipeline de **dados escalável, modular e automatizado**, que cone
 
 ```mermaid
 flowchart LR
-    A["📈 yfinance API (IBOV data)"] --> B(["🪣 S3 Bucket raw/ parquet partitioned"])
-    B -->|⚡ S3 Event Trigger| C(["⚙️ AWS Lambda"])
-    C --> D(("🧩 AWS Glue Job ETL Transformation"))
-    D --> E(["💾 S3 Bucket refined/ parquet + partitions"])
-    E --> F{{"📚 AWS Glue Crawler & Data Catalog"}}
-    F --> G["🔍 Amazon Athena SQL Queries & Analytics"]
+    A["📈 yfinance API (IBOV data)"] --> B(["🪣 S3 Bucket raw<br>parquet partitioned"])
+    B -->|⚡ S3 Event Trigger | C(["⚙️ AWS Lambda "])
+    C --> D(("🧩 AWS Glue Job ETL <br>Transformation "))
+    D --> E(["💾 S3 Bucket refined<br>parquet + partitions "])
+    E --> F{{"📚 AWS Glue Crawler <br>& Data Catalog "}}
+    F --> G["🔍 Amazon Athena<br>SQL Queries & Analytics "]
 ```
 
 📈 Fonte de dados: API Yahoo Finance (yfinance)  
