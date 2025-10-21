@@ -34,7 +34,7 @@ Demonstrar um pipeline de **dados escalável, modular e automatizado**, que cone
 ## 🧱 Arquitetura
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["📈 yfinance API (IBOV data)"] --> B(["🪣 S3 Bucket raw<br>parquet partitioned"])
     B -->|⚡ S3 Event Trigger | C(["⚙️ AWS Lambda "])
     C --> D(("🧩 AWS Glue Job ETL <br>Transformation "))
