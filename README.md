@@ -4,9 +4,7 @@
 Pipeline de dados batch na AWS para ingestão, transformação e análise do índice IBOVESPA, com automação via S3, Lambda, Glue e Athena.
 
 ---
-
-## 👩‍💻 Autoria
-**Ayla Atilio**  
+ 
 📚 Pós-graduação em Machine Learning Engineering — FIAP  
 🐍 Python | ☁️ AWS | 📊 Data Engineering  
 🔗 [linkedin.com/in/aylaatilio](https://linkedin.com/in/aylaatilio)  
